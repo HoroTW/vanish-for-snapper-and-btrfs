@@ -1,8 +1,10 @@
 import subprocess
 import sys
 from time import sleep
+
 from logger import logger
 from exceptions import SystemConfigurationError
+from retry import retry
 
 
 def check_snapper_systemd_timers_exist() -> bool:
@@ -25,18 +27,14 @@ def stop_snapper_timers():
     logger.info("Stopping snapper timers...")
     p1 = subprocess.run(["systemctl", "stop", "snapper-timeline.timer"])
     if p1.returncode != 0:
-        logger.error("Could not stop snapper-timeline.timer")
-        logger.error("Aborting. changed nothing.")
-        sys.exit(1)
+        raise SystemConfigurationError("Could not stop snapper-timeline.timer")
 
     p2 = subprocess.run(["systemctl", "stop", "snapper-cleanup.timer"])
     if p2.returncode != 0:
-        logger.error("Could not stop snapper-cleanup.timer")
-        logger.error("Aborting. changed nothing.")
-        sys.exit(1)
+        raise SystemConfigurationError("Could not stop snapper-cleanup.timer")
 
     # Wait for potential current snapper operations to finish
-    sleep(2)
+    sleep(2)  # TODO: just look at the jobs to determine if they are finished
 
 
 def resume_snapper_timers_and_exit(exit_code: int):
@@ -45,20 +43,23 @@ def resume_snapper_timers_and_exit(exit_code: int):
     sys.exit(exit_code)
 
 
-def resume_snapper_timers():
-    """Will inform the user if the timers could not be resumed."""
+def snap_res_fail_handler(e: Exception):
+    """Informs the user about the failure and swallows the Exception to continue."""
+    logger.error(f"{e}")
+    logger.warning("WARNING: You will need to start it manually.")
+    logger.warning("e.g.: systemctl start snapper-timeline.timer snapper-cleanup.timer")
+    logger.warning("continuing...")
 
+
+@retry(SystemConfigurationError, tries=5, initial_delay=1, backoff=2, func_for_failure=snap_res_fail_handler)
+def resume_snapper_timers():
+    """Resume snapper timers and raise a SystemConfigurationError if it fails."""
     logger.info("Resuming snapper timers...")
+
     p1 = subprocess.run(["systemctl", "start", "snapper-timeline.timer"])
     if p1.returncode != 0:
-        logger.error("Could not start snapper-timeline.timer")
-        logger.warning("WARNING: You will need to start it manually.")
-        logger.warning("e.g.: systemctl start snapper-timeline.timer")
-        logger.warning("continuing...")
+        raise SystemConfigurationError("Could not start snapper-timeline.timer again")
 
     p2 = subprocess.run(["systemctl", "start", "snapper-cleanup.timer"])
     if p2.returncode != 0:
-        logger.error("Could not start snapper-cleanup.timer")
-        logger.warning("WARNING: You will need to start it manually.")
-        logger.warning("e.g.: systemctl start snapper-cleanup.timer")
-        logger.warning("continuing...")
+        raise SystemConfigurationError("Could not start snapper-cleanup.timer again")
