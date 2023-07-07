@@ -62,10 +62,8 @@ DESCRIPTION:
 
 ### Installation:
 ```bash
-git clone <this repo>
-cd <this repo>
-chmod +x vanish
-sudo ln -s `pwd`/vanish /usr/bin/vanish
+git clone https://github.com/HoroTW/vanish-for-snapper-and-btrfs.git \
+&& sudo ln -s `pwd`/vanish-for-snapper-and-btrfs/vanish /usr/bin/vanish
 ```
 
 ### Set log level
@@ -107,9 +105,4 @@ sudo mount <DeviceID> /mnt && btdu /mnt ; sudo umount /mnt
 Make all snapshots in root read only again (if you want to do that):
 ```bash
 sudo ls /.snapshots | sudo xargs -I {} btrfs property set -ts /.snapshots/{}/snapshot ro true
-```
-
-Install (create a symlink from the repo to `/usr/bin/`):
-```bash
-sudo ln -s `pwd`/vanish /usr/bin/vanish
 ```
