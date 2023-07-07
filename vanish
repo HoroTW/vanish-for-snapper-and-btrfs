@@ -1,0 +1,396 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os
+import pathlib
+import shutil
+import sys
+import subprocess
+import logging
+from time import sleep
+
+
+class SystemConfigurationError(RuntimeError):
+    pass
+
+
+def check_snapper_systemd_timers_exist() -> bool:
+    """Checks if the snapper systemd timers exist, Raises an SystemConfigurationError if something is wrong."""
+
+    for timer in ("snapper-timeline.timer", "snapper-cleanup.timer"):
+        p = subprocess.run(["systemctl", "is-active", timer], stdout=subprocess.DEVNULL)
+        if p.returncode == 4:
+            raise SystemConfigurationError(f"The {timer} does not exist.")
+        elif p.returncode == 3:
+            raise SystemConfigurationError(f"The {timer} is not running.")
+        elif p.returncode != 0:
+            raise SystemConfigurationError(f"Unexpected return code from systemd: {p.returncode}")
+    return True
+
+
+def stop_snapper_timers():
+    """Will exit the script if the timers could not be stopped."""
+
+    logger.info("Stopping snapper timers...")
+    p1 = subprocess.run(["systemctl", "stop", "snapper-timeline.timer"])
+    if p1.returncode != 0:
+        logger.error("Could not stop snapper-timeline.timer")
+        logger.error("Aborting. changed nothing.")
+        sys.exit(1)
+
+    p2 = subprocess.run(["systemctl", "stop", "snapper-cleanup.timer"])
+    if p2.returncode != 0:
+        logger.error("Could not stop snapper-cleanup.timer")
+        logger.error("Aborting. changed nothing.")
+        sys.exit(1)
+
+    # Wait for potential current snapper operations to finish
+    sleep(2)
+
+
+def resume_snapper_timers_and_exit(exit_code: int):
+    """Resume snapper timers and exit with the given exit code."""
+    resume_snapper_timers()
+    sys.exit(exit_code)
+
+
+def resume_snapper_timers():
+    """Will inform the user if the timers could not be resumed."""
+
+    logger.info("Resuming snapper timers...")
+    p1 = subprocess.run(["systemctl", "start", "snapper-timeline.timer"])
+    if p1.returncode != 0:
+        logger.error("Could not start snapper-timeline.timer")
+        logger.warning("WARNING: You will need to start it manually.")
+        logger.warning("e.g.: systemctl start snapper-timeline.timer")
+        logger.warning("continuing...")
+
+    p2 = subprocess.run(["systemctl", "start", "snapper-cleanup.timer"])
+    if p2.returncode != 0:
+        logger.error("Could not start snapper-cleanup.timer")
+        logger.warning("WARNING: You will need to start it manually.")
+        logger.warning("e.g.: systemctl start snapper-cleanup.timer")
+        logger.warning("continuing...")
+
+
+def print_usage_and_exit(exit_code: int):
+    """Prints the usage and exits with the given exit code."""
+    print_usage()
+    sys.exit(exit_code)
+
+
+def print_usage():
+    """Prints the usage and if an exit code is given, exists with it."""
+    print(
+        """
+usage: vanish [OPTIONS] <file/directory to delete>
+
+OPTIONS:
+  --help                    Print this help message
+  --snapdir <snapshot dir>  The directory where your snapper snapshots are stored.
+                            If no directory is given vanish will search
+                            upwards from the file/directory to delete for a
+                            .snapshots directory. If none is found it will exit.
+                            Most of the time you will not need to specify this.
+
+
+<file/directory to delete>: Path to the file or directory you want to delete.
+        Even if you already deleted it from your working subvolume, you can still
+        write the old path to it here to delete it from all snapshots see Example 4.
+
+EXAMPLE 1: vanish /home/user/big_useless_directory
+EXAMPLE 2: vanish --snapdir /home/.snapshots big_useless_file
+EXAMPLE 3: vanish ~/Downloads/big_useless_file
+
+EXAMPLE 4:
+  pwd # /home/user
+  rm -rf a_useless_directory  # first deleted the folder... then:
+  vanish --snapdir /home/.snapshots a_useless_directory # vanishes it from snapshots
+
+DESCRIPTION:
+  Vanish for Snapper and BTRFS
+  A tool to make files vanish out of existence (or at least out of all snapshots)
+
+  It's useful for reclaiming space from without deleting the snapshots themselves
+  The folder or file will be deleted from all snapper snapshots in the snapshot
+  directory."""
+    )
+
+
+def parse_args():
+    snapshot_dir = None
+
+    # check if an arg is --help
+    if any(arg == "--help" for arg in sys.argv):
+        print_usage_and_exit(0)
+
+    for i in range(len(sys.argv)):
+        if sys.argv[i] == "--snapdir":
+            sys.argv.pop(i)
+            if i >= len(sys.argv):
+                logger.error("No snapshot directory given after --snapdir")
+                print_usage_and_exit(1)
+            else:
+                # snapshot_dir = os.path.abspath(sys.argv.pop(i))
+                snapshot_dir = pathlib.Path(sys.argv.pop(i)).resolve()
+                break
+
+    # check if file/directory to delete is given
+    if len(sys.argv) < 2:
+        logger.error("No file or directory to delete given")
+        print_usage_and_exit(1)
+    elif len(sys.argv) > 2:
+        logger.error("Too many arguments given")
+        logger.debug(f"Arguments: {sys.argv}")
+        print_usage_and_exit(1)
+
+    # file_or_folder_to_delete = os.path.abspath(sys.argv[0])
+    file_or_dir_to_del = pathlib.Path(sys.argv[1]).resolve()
+
+    # Check if the user is root
+    if os.geteuid() != 0:
+        logger.error("You need to run this script as root.")
+        print_usage_and_exit(1)
+
+    return snapshot_dir, file_or_dir_to_del
+
+
+def search_snapshot_dir_upwards(path: pathlib.Path) -> pathlib.Path:
+    """Searches upwards for a .snapshots directory"""
+
+    while path != pathlib.Path("/"):
+        if (path / ".snapshots").is_dir():  # magical / operator of pathlib.Path
+            return (path / ".snapshots").resolve()
+        path = path.parent
+
+    raise FileNotFoundError("Could not find a .snapshots directory")
+
+
+def get_path_relative_to_snapshot(path: pathlib.Path, snapshot_dir: pathlib.Path) -> pathlib.Path:
+    """Removes the beginning of path that is the same as in the snapshot_dirs snapshots
+    e.g. if path is /home/user/dir_to_del and snapshot_dir is /home/.snapshots
+    we would like path to be /user/dir_to_del (so without the /home part)
+    """
+    parts_of_path = list(path.parts)
+
+    for part in snapshot_dir.parts:
+        if parts_of_path[0] == part:
+            parts_of_path.pop(0)
+        else:
+            break
+
+    return pathlib.Path(*parts_of_path)
+
+
+def find_read_only_snapshots(snapshot_dirs: list[pathlib.Path]) -> list[pathlib.Path]:
+    """Finds the read-only snapshots in snapshot_dirs"""
+    read_only_snapshots = []
+
+    for snapshot in snapshot_dirs:
+        if os.access(snapshot, os.W_OK):  # snapshot is read-write
+            continue
+        elif os.access(snapshot, os.R_OK):  # snapshot is read
+            read_only_snapshots.append(snapshot)
+        else:  # This snapshot is not accessible
+            logger.error("Could not access snapshot: " + str(snapshot))
+            logger.error("Aborting. No snapshots were changed.")
+            resume_snapper_timers_and_exit(1)
+    return read_only_snapshots
+
+
+def make_snapshots_writable(snapshot_dirs: list[pathlib.Path], verbose: bool = False):
+    """Makes all snapshots in snapshot_dirs writable using btrfs property set
+    Returns a list of the snapshots that were made writable"""
+
+    print(f"\nMaking {len(snapshot_dirs)} snapshots writable")
+
+    for snapshot in snapshot_dirs:
+        if verbose:
+            logger.info("Making snapshot read-write using BTRFS: " + str(snapshot))
+        p = subprocess.run(["btrfs", "property", "set", "-ts", snapshot, "ro", "false"])
+
+        if p.returncode != 0:
+            logger.warning("Could not make snapshot read-write: " + str(snapshot))
+            logger.warning("Continuing with next snapshot")
+
+        permission_modified_snapshots.append(snapshot)  # intentionally a global variable
+
+
+def restore_snapshot_permissions(verbose: bool = False):
+    """Makes all snapshots in snapshot_dirs read-only using btrfs property set"""
+    global permission_modified_snapshots
+
+    print(f"\nMaking {len(permission_modified_snapshots)} snapshots read-only")
+    for snapshot in permission_modified_snapshots:
+        if verbose:
+            logger.info("Making snapshot read-only again using BTRFS: " + str(snapshot))
+        p = subprocess.run(["btrfs", "property", "set", "-ts", snapshot, "ro", "true"])
+        if p.returncode != 0:
+            logger.error("Could not make snapshot read-only again: " + str(snapshot))
+            logger.warning("You will need to make it read-only manually.")
+            logger.warning(f"e.g.: sudo btrfs property set -ts {snapshot} ro true")
+            logger.warning("continuing...")
+
+
+def main():
+    snapshot_dir, file_or_dir_to_del_org = parse_args()
+
+    # find snapshot dir if none is given
+    if snapshot_dir is None:
+        snapshot_dir = search_snapshot_dir_upwards(file_or_dir_to_del_org)
+
+    # Check if the snapshot directory exists
+    if not snapshot_dir.is_dir():
+        logger.error("The snapshot directory does not exist.")
+        sys.exit(1)
+
+    # Do snapper timer exist?
+    try:
+        check_snapper_systemd_timers_exist()
+    except SystemConfigurationError as e:
+        logger.error(e)
+        logger.error("This script is designed to work only with systemd timers.")
+        logger.error("Aborting. changed nothing.")
+        sys.exit(1)
+
+    # Pause snapper timers
+    stop_snapper_timers()
+
+    logger.info("Snapshot directory: " + str(snapshot_dir))
+
+    snapshot_conf_dirs = snapshot_dir.glob("*")  # glob used here like ls
+    snapshot_dirs = [snapshot_dir / snapshot_conf / "snapshot" for snapshot_conf in snapshot_conf_dirs]
+
+    file_or_dir_to_del = get_path_relative_to_snapshot(file_or_dir_to_del_org, snapshot_dir)
+
+    possible_paths_to_delete = [snapshot / file_or_dir_to_del for snapshot in snapshot_dirs]
+
+    paths_to_delete = []
+
+    # Check if the file/directory to delete exists in any of the snapshots
+    for path in possible_paths_to_delete:
+        if path.exists():
+            paths_to_delete.append(path)
+
+    # Check if the file/directory to delete exists in any of the snapshots
+    if len(paths_to_delete) == 0:
+        logger.error("The file/directory to delete does not exist in any of the snapshots.")
+        resume_snapper_timers_and_exit(exit_code=1)
+
+    print("\nThe following files/directories will be deleted:")
+    for path in paths_to_delete:
+        print(path)
+
+    # Ask the user if they want to continue
+    print(f"\nFound {len(paths_to_delete)} snapshots with files/directories to delete.")
+    answer = input(f"Do you want to continue? [y/N] ")
+    if answer.lower() != "y":
+        print("Aborting.")
+        resume_snapper_timers_and_exit(exit_code=1)
+
+    # Filter all snapshot_dirs so that only the ones that contain the file/directory to delete remain
+    filtered_snapshot_dirs = []
+    for s_dir in snapshot_dirs:
+        # check if the dir is relative to any of any paths to delete
+        if any(path_to_del.is_relative_to(s_dir) for path_to_del in paths_to_delete):
+            filtered_snapshot_dirs.append(s_dir)
+
+    # Find the read-only snapshots
+    read_only_snapshots = find_read_only_snapshots(filtered_snapshot_dirs)
+
+    make_snapshots_writable(read_only_snapshots)
+
+    # reverse paths_to_delete so that we delete from the newest snapshot to the oldest
+    paths_to_delete.reverse()
+
+    # Delete the files/directories
+    for path in paths_to_delete:
+        logger.info("Deleting: " + str(path))
+
+        try:
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+        except Exception as e:
+            logger.error(f"WARNING: Could not delete: {path}")
+            logger.warning(f"Most likely the snapshot couldn't be made writable. Exception is: {e}")
+            logger.warning("Continuing...")
+            continue
+
+    # Make the read-only snapshots read-only again
+    restore_snapshot_permissions()
+
+    # Ask the user if they also want to delete the file from the current system
+    # check if the file/directory to delete exists in the current system
+    if file_or_dir_to_del_org.exists():
+        print(f"\nThe file/directory also exists in the current system: {file_or_dir_to_del_org}")
+        answer = input(f"Do you want to delete it also from the current system? [y/N] ")
+        if answer.lower() == "y":
+            logger.info("Deleting: " + str(file_or_dir_to_del_org))
+            try:
+                if os.path.isdir(file_or_dir_to_del_org):
+                    shutil.rmtree(file_or_dir_to_del_org)
+                else:
+                    os.remove(file_or_dir_to_del_org)
+                print(f"Deleted.")
+            except Exception as e:
+                logger.error(f"WARNING: Could not delete: {file_or_dir_to_del_org}")
+                logger.warning(f"Exception is: {e}")
+                logger.warning("Continuing...")
+
+    # Resume snapper timers
+    resume_snapper_timers()
+    print(f"Done.")
+
+
+def configure_logger():
+    # get environment variable LOG_LEVEL
+    log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+
+    # configure logging
+    logging.basicConfig(
+        # to use colors without colorama
+        level=logging.INFO,
+        format="%(levelname)s %(message)s",
+        handlers=[],
+    )
+
+    try:
+        import colorama
+
+        colorama.init()
+        from colorama import Fore, Style
+
+        class ColorFormatter(logging.Formatter):
+            def format(self, record):
+                if record.levelno == logging.WARNING:
+                    record.msg = Fore.YELLOW + record.msg + Style.RESET_ALL
+                elif record.levelno == logging.ERROR:
+                    record.msg = Fore.RED + record.msg + Style.RESET_ALL
+                elif record.levelno == logging.INFO:
+                    record.msg = Fore.GREEN + record.msg + Style.RESET_ALL
+                return super().format(record)
+
+        color_formatter = ColorFormatter("%(levelname)s %(message)s")
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(color_formatter)
+        logging.getLogger().addHandler(console_handler)
+        logging.getLogger().setLevel(log_level)
+    except ImportError:
+        pass  # expected if colorama is not installed - logging will be without colors
+
+
+global permission_modified_snapshots
+global logger
+
+if __name__ == "__main__":
+    permission_modified_snapshots: list[pathlib.Path] = []
+    configure_logger()
+    logger = logging.getLogger()
+
+    try:
+        main()
+    except KeyboardInterrupt:
+        logger.warning("\n\nAborting - making snapshots read-only again. And resuming timers.")
+        restore_snapshot_permissions(verbose=True)
+        resume_snapper_timers_and_exit(1)
