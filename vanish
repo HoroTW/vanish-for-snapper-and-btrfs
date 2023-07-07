@@ -118,20 +118,30 @@ def main():
                 logger.error(f"WARNING: Could not delete: {file_or_dir_to_del_org}")
                 logger.warning(f"Exception is: {e}")
                 logger.warning("Continuing...")
+    print(f"")
 
     # Resume snapper timers
     stc.resume_snapper_timers()
     print(f"Done.")
 
 
-global permission_modified_snapshots
-
 if __name__ == "__main__":
-    permission_modified_snapshots: list[pathlib.Path] = []
-
     try:
         main()
     except KeyboardInterrupt:
-        logger.warning("\n\nAborting - making snapshots read-only again. And resuming timers.")
+        print("\n\nSIGINT received. Aborting.")
+        logger.error("Aborting - Snapshot permissions will be rolled back and timers resumed.")
+        snapshot_handler.restore_snapshot_permissions(verbose=True)
+        stc.resume_snapper_timers_and_exit(1)
+
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        try:
+            import traceback  # fmt: skip
+            logger.error(traceback.format_exc())
+        except ImportError:
+            print("Could not import traceback. - So no traceback will be printed")
+
+        logger.error("Aborting - Snapshot permissions will be rolled back and timers resumed.")
         snapshot_handler.restore_snapshot_permissions(verbose=True)
         stc.resume_snapper_timers_and_exit(1)
