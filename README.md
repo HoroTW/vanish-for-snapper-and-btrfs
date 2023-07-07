@@ -57,11 +57,6 @@ DESCRIPTION:
   directory.
 ```
 
-[//]: # (- Tested on folder with size 80GB &#40;200 files&#41; in home directory with 40 snapshots)
-[//]: # (- Tested on file with size 8GB in home directory with 40 snapshots)
-[//]: # (- Tested on file with size 80GB in root directory with 40 snapshots)
-[//]: # (- Tested on folder with size 80GB &#40;4 files&#41; in root directory with 40 snapshots)
-
 ### Requirements:
 - Nothing besides a python3 installation
 
@@ -85,6 +80,10 @@ LOG_LEVEL=DEBUG vanish file_to_delete
   - Delete a file/directory in all of them
   - Set the snapshots to read-only again
 - Resume snapper timers
+
+### If you want to support me
+You can [buy me a coffee](https://bmc.link/HoroTW) if you want to support me.
+Support is not required, but it is very much appreciated - it keeps me motivated to work on this and other projects. Thank you! 😊
 
 Useful other commands:
 ----------------------
