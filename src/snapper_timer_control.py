@@ -7,6 +7,7 @@ from exceptions import SystemConfigurationError
 from retry_annotation import retry
 
 
+@retry(SystemConfigurationError, tries=3, initial_delay=1, backoff=1)
 def check_snapper_systemd_timers_exist() -> bool:
     """Checks if the snapper systemd timers exist, Raises an SystemConfigurationError if something is wrong."""
 
@@ -21,6 +22,7 @@ def check_snapper_systemd_timers_exist() -> bool:
     return True
 
 
+@retry(SystemConfigurationError, tries=5, initial_delay=1, backoff=2)
 def stop_snapper_timers():
     """Will exit the script if the timers could not be stopped."""
 
@@ -46,8 +48,8 @@ def resume_snapper_timers_and_exit(exit_code: int):
 def snap_res_fail_handler(e: Exception):
     """Informs the user about the failure and swallows the Exception to continue."""
     logger.error(f"{e}")
-    logger.warning("WARNING: You will need to start it manually.")
-    logger.warning("e.g.: systemctl start snapper-timeline.timer snapper-cleanup.timer")
+    logger.warning("WARNING: You will need to start the timers manually.")
+    logger.warning("e.g. by doing: systemctl start snapper-timeline.timer snapper-cleanup.timer")
     logger.warning("continuing...")
 
 
