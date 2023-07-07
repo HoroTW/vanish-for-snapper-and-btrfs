@@ -5,7 +5,7 @@ Vanish - for Snapper and BTRFS
 
 This is useful for reclaiming space from BTRFS snapshots without deleting the snapshots themselves.
 
-For frequently changing files which take up a lot of space, you should consider if you want to keep them in 
+For frequently changing files which take up a lot of space, you should consider if you want to keep them in
 the snapshots at all. You could prevent this by using a separate subvolume for the frequently changing files.
 
 - The tool tries to ensure consistency by pausing the snapper timers while it is running.
@@ -29,8 +29,8 @@ usage: vanish [OPTIONS] <file/directory to delete>
 OPTIONS:
   --help                    Print this help message
   --snapdir <snapshot dir>  The directory where your snapper snapshots are stored.
-                            If no directory is given vanish will search 
-                            upwards from the file/directory to delete for a 
+                            If no directory is given vanish will search
+                            upwards from the file/directory to delete for a
                             .snapshots directory. If none is found it will exit.
                             Most of the time you will not need to specify this.
 
@@ -53,7 +53,7 @@ DESCRIPTION:
   A tool to make files vanish out of existence (or at least out of all snapshots)
 
   It's useful for reclaiming space from without deleting the snapshots themselves
-  The folder or file will be deleted from all snapper snapshots in the snapshot 
+  The folder or file will be deleted from all snapper snapshots in the snapshot
   directory.
 ```
 
@@ -61,6 +61,9 @@ DESCRIPTION:
 [//]: # (- Tested on file with size 8GB in home directory with 40 snapshots)
 [//]: # (- Tested on file with size 80GB in root directory with 40 snapshots)
 [//]: # (- Tested on folder with size 80GB &#40;4 files&#41; in root directory with 40 snapshots)
+
+### Requirements:
+- Nothing besides a python3 installation
 
 ### Installation:
 ```bash
