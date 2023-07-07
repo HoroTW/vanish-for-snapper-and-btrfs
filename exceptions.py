@@ -1,0 +1,2 @@
+class SystemConfigurationError(RuntimeError):
+    pass
