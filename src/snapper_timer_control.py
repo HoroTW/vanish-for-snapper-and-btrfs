@@ -4,7 +4,7 @@ from time import sleep
 
 from logger import logger
 from exceptions import SystemConfigurationError
-from retry import retry
+from retry_annotation import retry
 
 
 def check_snapper_systemd_timers_exist() -> bool:
