@@ -1,0 +1,6 @@
+[tool.black]
+line-length = 110
+
+# Stop E701 in pycharm:
+[PEP8]
+ignore = "E701"
