@@ -63,7 +63,7 @@ DESCRIPTION:
 ### Installation:
 ```bash
 git clone https://github.com/HoroTW/vanish-for-snapper-and-btrfs.git \
-&& sudo ln -s `pwd`/vanish-for-snapper-and-btrfs/vanish /usr/bin/vanish
+&& sudo ln -s `pwd`/vanish-for-snapper-and-btrfs/src/vanish /usr/bin/vanish
 ```
 
 ### Set log level
