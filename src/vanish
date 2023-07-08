@@ -77,8 +77,8 @@ def main():
     # Find the read-only snapshots
     read_only_snapshots = snapshot_handler.find_read_only_snapshots(filtered_snapshot_dirs)
 
-    # Make the read-only snapshots writable
-    snapshot_handler.make_snapshots_writable(read_only_snapshots)
+    # Set the read-only snapshots writable
+    snapshot_handler.set_snapshots_writable(read_only_snapshots)
 
     # reverse paths_to_delete so that we delete from the newest snapshot to the oldest
     paths_to_delete.reverse()
