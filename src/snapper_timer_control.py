@@ -36,7 +36,7 @@ def stop_snapper_timers():
         raise SystemConfigurationError("Could not stop snapper-cleanup.timer")
 
     if are_snapper_jobs_running():
-        sleep(5)  # additional time to give them a fairer chance to finish (they normaly finish quickly)
+        sleep(5)  # additional time to give them a fairer chance to finish (they normally finish quickly)
         raise SystemConfigurationError("Snapper jobs are currently running, waiting for them to finish...")
 
 

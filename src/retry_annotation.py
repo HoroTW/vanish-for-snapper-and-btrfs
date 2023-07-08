@@ -4,9 +4,9 @@ from functools import wraps
 from logger import logger
 
 
-def retry(ExceptionToCheck, tries=5, initial_delay=2, backoff=2, failure_handler=None):
+def retry(exception_to_check, tries=5, initial_delay=2, backoff=2, failure_handler=None):
     """A Retry decorator with an exponential backoff.
-    Heavily inspired by http://wiki.python.org/moin/PythonDecoratorLibrary#Retry
+    Heavily inspired by https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
     If all retries fail the exception will be raised.
     If failure_handler is given it will be called with the exception as argument instead
     of raising the exception.
@@ -15,20 +15,20 @@ def retry(ExceptionToCheck, tries=5, initial_delay=2, backoff=2, failure_handler
     def decorator_retry(f):
         @wraps(f)
         def f_retry(*args, **kwargs):
-            mtries, mdelay = tries, initial_delay
+            m_tries, m_delay = tries, initial_delay
 
-            while mtries > 1:
+            while m_tries > 1:
                 try:
                     return f(*args, **kwargs)
-                except ExceptionToCheck as e:
-                    logger.warning(f"{e}, Retrying in {mdelay} seconds... ({mtries-1} tries left)")
-                    time.sleep(mdelay)
-                    mtries -= 1
-                    mdelay *= backoff  # calculate delay for next try
+                except exception_to_check as e:
+                    logger.warning(f"{e}, Retrying in {m_delay} seconds... ({m_tries - 1} tries left)")
+                    time.sleep(m_delay)
+                    m_tries -= 1
+                    m_delay *= backoff  # calculate delay for next try
 
             try:
                 return f(*args, **kwargs)  # last try
-            except ExceptionToCheck as e:
+            except exception_to_check as e:
                 if failure_handler is not None:
                     failure_handler(e)
                 else:

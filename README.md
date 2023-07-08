@@ -9,18 +9,18 @@ For frequently changing files which take up a lot of space, you should consider 
 the snapshots at all. You could prevent this by using a separate subvolume for the frequently changing files.
 
 - The tool tries to ensure consistency by pausing the snapper timers while it is running.
-- Also it keeps track which snapshots where read only and only sets those back to read only.
+- Also, it keeps track which snapshots where read only and only sets those back to read only.
 - It asks you for confirmation and shows you what it is going to delete before it does it.
-- In general it does what a very simple script would do, but it tries to do it in a more robust way.
+- In general, it does what a very simple script would do, but it tries to do it in a more robust way.
 
 As long as you use it only on files and directories you don't need anymore, it should be safe to use - but see the disclaimer below.
 
 ### DISCLAIMER:
 > - I am not responsible for any data loss or other damage caused by this tool.<br>
 > - Use it at your own risk.<br>
-> - I use it myself and it works for me, but I can't guarantee that it will work for you.
+> - I use it myself, and it works for me, but I can't guarantee that it will work for you.
 
-If anything goes wrong, please open an issue so we can track down the problem.
+If anything goes wrong, please open an issue, so we can track down the problem.
 
 ### Usage:
 ```text

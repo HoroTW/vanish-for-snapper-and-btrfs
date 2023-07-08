@@ -3,7 +3,6 @@ import pathlib
 import subprocess
 
 from logger import logger
-import snapper_timer_control as stc
 from retry_annotation import retry
 
 permission_modified_snapshots: list[pathlib.Path] = []  # stores the snapshots that have been made writable
@@ -64,4 +63,4 @@ def restore_snapshot_permissions(verbose: bool = False):
         p = subprocess.run(["btrfs", "property", "set", "-ts", snapshot, "ro", "true"])
         if p.returncode != 0:
             raise PermissionError("Could not make snapshot read-only again: " + str(snapshot))
-        permission_modified_snapshots.remove(snapshot)  # on retry it is not modified anymore
+        permission_modified_snapshots.remove(snapshot)  # on retry, it is not modified anymore
