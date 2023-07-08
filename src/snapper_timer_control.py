@@ -35,8 +35,22 @@ def stop_snapper_timers():
     if p2.returncode != 0:
         raise SystemConfigurationError("Could not stop snapper-cleanup.timer")
 
-    # Wait for potential current snapper operations to finish
-    sleep(2)  # TODO: just look at the jobs to determine if they are finished
+    if are_snapper_jobs_running():
+        sleep(5)  # additional time to give them a fairer chance to finish (they normaly finish quickly)
+        raise SystemConfigurationError("Snapper jobs are currently running, waiting for them to finish...")
+
+
+def are_snapper_jobs_running() -> bool:
+    """Returns true if snapper jobs are running."""
+    p = subprocess.run(
+        ["systemctl", "is-active", "snapper-timeline.service", "snapper-cleanup.service"],
+        stdout=subprocess.PIPE,
+    )
+    output = p.stdout.decode("utf-8")
+
+    if any(line.strip() == "active" for line in output.splitlines()):
+        return True  # A service is active if it is running else (even if it doesn't exist) it is inactive
+    return False
 
 
 def resume_snapper_timers_and_exit(exit_code: int):
