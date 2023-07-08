@@ -53,7 +53,7 @@ def snap_res_fail_handler(e: Exception):
     logger.warning("continuing...")
 
 
-@retry(SystemConfigurationError, tries=5, initial_delay=1, backoff=2, func_for_failure=snap_res_fail_handler)
+@retry(SystemConfigurationError, tries=5, initial_delay=1, backoff=2, failure_handler=snap_res_fail_handler)
 def resume_snapper_timers():
     """Resume snapper timers and raise a SystemConfigurationError if it fails."""
     logger.info("Resuming snapper timers...")

@@ -4,11 +4,11 @@ from functools import wraps
 from logger import logger
 
 
-def retry(ExceptionToCheck, tries=5, initial_delay=2, backoff=2, func_for_failure=None):
+def retry(ExceptionToCheck, tries=5, initial_delay=2, backoff=2, failure_handler=None):
     """A Retry decorator with an exponential backoff.
     Heavily inspired by http://wiki.python.org/moin/PythonDecoratorLibrary#Retry
     If all retries fail the exception will be raised.
-    If func_for_failure is given it will be called with the exception as argument instead
+    If failure_handler is given it will be called with the exception as argument instead
     of raising the exception.
     """
 
@@ -29,8 +29,8 @@ def retry(ExceptionToCheck, tries=5, initial_delay=2, backoff=2, func_for_failur
             try:
                 return f(*args, **kwargs)  # last try
             except ExceptionToCheck as e:
-                if func_for_failure is not None:
-                    func_for_failure(e)
+                if failure_handler is not None:
+                    failure_handler(e)
                 else:
                     raise e
 
