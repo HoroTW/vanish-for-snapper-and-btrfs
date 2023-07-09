@@ -87,7 +87,7 @@ Useful other commands:
 ----------------------
 
 Activate the snapper timers:
-``` bash
+```bash
 sudo systemctl start snapper-timeline.timer snapper-cleanup.timer
 ```
 
@@ -99,7 +99,7 @@ sudo ls /home/.snapshots | sudo xargs -I {} btrfs property set -ts /home/.snapsh
 Inspect what is taking up space in btrfs and snapshots (space required will only be accounted for one subvolume).
 But useful to find out what you need to delete (you need to have btdu installed, of course):
 ```bash
-sudo mount <DeviceID> /mnt && btdu /mnt ; sudo umount /mnt
+sudo mount <DeviceID> /mnt && sudo btdu /mnt ; sudo umount /mnt
 ```
 
 Make all snapshots in root read only again (if you want to do that):
