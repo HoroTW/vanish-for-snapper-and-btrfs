@@ -62,7 +62,7 @@ def resume_snapper_timers_and_exit(exit_code: int):
 def snap_res_fail_handler(e: Exception):
     """Informs the user about the failure and swallows the Exception to continue."""
     logger.error(f"{e}")
-    logger.warning("WARNING: You will need to start the timers manually.")
+    logger.warning("You will need to start the timers manually.")
     logger.warning("e.g. by doing: systemctl start snapper-timeline.timer snapper-cleanup.timer")
     logger.warning("continuing...")
 

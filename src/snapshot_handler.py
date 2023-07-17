@@ -30,7 +30,7 @@ def set_snapshots_writable(snapshot_dirs: list[pathlib.Path], verbose: bool = Fa
     # Filter out the snapshots that have already been made writable (in case of a retry)
     to_modify = [snap for snap in snapshot_dirs if snap not in permission_modified_snapshots]
 
-    print(f"\nMaking {len(to_modify)} snapshots writable\n")
+    print(f"\nMaking {len(to_modify)} snapshots writable\n", flush=True)
 
     for snapshot in to_modify:
         if verbose:
@@ -46,7 +46,7 @@ def set_snapshots_writable(snapshot_dirs: list[pathlib.Path], verbose: bool = Fa
 def restore_snap_fail_handler(e: PermissionError):
     """Informs the user about the failure and swallows the Exception to continue."""
     logger.error(f"{e}")
-    logger.warning("WARNING: You will need to make the snapshots read-only manually.")
+    logger.warning("You will need to make the snapshots read-only manually.")
     logger.warning("e.g.: sudo btrfs property set -ts <snapshot> ro true")
     logger.warning("continuing...")
 
@@ -55,7 +55,7 @@ def restore_snap_fail_handler(e: PermissionError):
 def restore_snapshot_permissions(verbose: bool = False):
     """Makes all snapshots in snapshot_dirs read-only using btrfs property set"""
 
-    print(f"\nMaking {len(permission_modified_snapshots)} snapshots read-only again")
+    print(f"\nMaking {len(permission_modified_snapshots)} snapshots read-only again", flush=True)
     to_change_back = permission_modified_snapshots.copy()
     for snapshot in to_change_back:
         if verbose:

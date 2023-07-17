@@ -56,15 +56,15 @@ def main():
         ask_and_delete_file_on_current_system_subvol(file_or_dir_to_del_org)
         stc.resume_snapper_timers_and_exit(exit_code=1)
 
-    print("\nThe following files/directories will be deleted:")
+    print("\nThe following files/directories will be deleted:", flush=True)
     for path in paths_to_delete:
-        print(path)
+        print(path, flush=True)
 
     # Ask the user if they want to continue
-    print(f"\nFound {len(paths_to_delete)} snapshots with files/directories to delete.")
+    print(f"\nFound {len(paths_to_delete)} snapshots with files/directories to delete.", flush=True)
     answer = input(f"Do you want to continue? [y/N] ")
     if answer.lower() != "y":
-        print("Aborting.")
+        print("Aborting.", flush=True)
         stc.resume_snapper_timers_and_exit(exit_code=1)
 
     # Filter all snapshot_dirs so that only the ones that contain the file/directory to delete remain
@@ -93,7 +93,7 @@ def main():
             else:
                 os.remove(path)
         except Exception as e:
-            logger.error(f"WARNING: Could not delete: {path}")
+            logger.error(f"Could not delete: {path}")
             logger.warning(f"Most likely the snapshot couldn't be made writable. Exception is: {e}")
             logger.warning("Continuing...")
             continue
@@ -105,7 +105,7 @@ def main():
 
     # Resume snapper timers
     stc.resume_snapper_timers()
-    print(f"Done.")
+    print(f"Done.", flush=True)
 
 
 def ask_and_delete_file_on_current_system_subvol(file_or_dir_to_del_original_location):
@@ -114,7 +114,7 @@ def ask_and_delete_file_on_current_system_subvol(file_or_dir_to_del_original_loc
     to_del = file_or_dir_to_del_original_location
 
     if to_del.exists():
-        print(f"\nThe file/directory exists in the current system: {to_del}")
+        print(f"\nThe file/directory exists in the current system: {to_del}", flush=True)
         answer = input(f"Do you want to delete it from the current system? [y/N] ")
         if answer.lower() == "y":
             logger.info("Deleting: " + str(to_del))
@@ -123,19 +123,19 @@ def ask_and_delete_file_on_current_system_subvol(file_or_dir_to_del_original_loc
                     shutil.rmtree(to_del)
                 else:
                     os.remove(to_del)
-                print(f"Deleted.")
+                print(f"Deleted.", flush=True)
             except Exception as e:
-                logger.error(f"WARNING: Could not delete: {to_del}")
+                logger.error(f"Could not delete: {to_del}")
                 logger.warning(f"Exception is: {e}")
                 logger.warning("Continuing...")
-    print(f"")
+    print(f"", flush=True)
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\nSIGINT received. Aborting.")
+        print("\n\nSIGINT received. Aborting.", flush=True)
         logger.error("Aborting - Snapshot permissions will be rolled back and timers resumed.")
         snapshot_handler.restore_snapshot_permissions(verbose=True)
         stc.resume_snapper_timers_and_exit(1)

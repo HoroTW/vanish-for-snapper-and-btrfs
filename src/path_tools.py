@@ -7,7 +7,7 @@ def search_snapshot_dir_upwards(path: pathlib.Path) -> pathlib.Path:
 
     # this is a do while in python... (python has no real do while loop ^^')
     while True:
-        print(f"checking {path / '.snapshots'}")
+        print(f"checking {path / '.snapshots'}", flush=True)
         if (path / ".snapshots").is_dir():  # / operator of pathlib.Path joins paths
             return (path / ".snapshots").resolve()
         path = path.parent
