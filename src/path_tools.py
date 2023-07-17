@@ -3,13 +3,19 @@ import pathlib
 
 def search_snapshot_dir_upwards(path: pathlib.Path) -> pathlib.Path:
     """Searches upwards for a .snapshots directory"""
+    path = path.parent  # we don't check for the file itself but for the directory it is in
 
-    while path != pathlib.Path("/"):
-        if (path / ".snapshots").is_dir():  # magical / operator of pathlib.Path
+    # this is a do while in python... (python has no real do while loop ^^')
+    while True:
+        print(f"checking {path / '.snapshots'}")
+        if (path / ".snapshots").is_dir():  # / operator of pathlib.Path joins paths
             return (path / ".snapshots").resolve()
         path = path.parent
 
-    raise FileNotFoundError("Could not find a .snapshots directory")
+        if path == pathlib.Path("/"):  # Condition for the do while loop
+            break
+
+    raise FileNotFoundError("Could not find a .snapshots directory - You need to specify one manually")
 
 
 def get_path_relative_to_snapshot(path: pathlib.Path, snapshot_dir: pathlib.Path) -> pathlib.Path:

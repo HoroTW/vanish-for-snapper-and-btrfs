@@ -53,6 +53,7 @@ def main():
     # Check if the file/directory to delete exists in any of the snapshots
     if len(paths_to_delete) == 0:
         logger.error("The file/directory to delete does not exist in any of the snapshots.")
+        ask_and_delete_file_on_current_system_subvol(file_or_dir_to_del_org)
         stc.resume_snapper_timers_and_exit(exit_code=1)
 
     print("\nThe following files/directories will be deleted:")
@@ -100,28 +101,34 @@ def main():
     # Make the read-only snapshots read-only again
     snapshot_handler.restore_snapshot_permissions()
 
-    # Ask the user if they also want to delete the file from the current system
-    # check if the file/directory to delete exists in the current system
-    if file_or_dir_to_del_org.exists():
-        print(f"\nThe file/directory also exists in the current system: {file_or_dir_to_del_org}")
-        answer = input(f"Do you want to delete it also from the current system? [y/N] ")
-        if answer.lower() == "y":
-            logger.info("Deleting: " + str(file_or_dir_to_del_org))
-            try:
-                if os.path.isdir(file_or_dir_to_del_org):
-                    shutil.rmtree(file_or_dir_to_del_org)
-                else:
-                    os.remove(file_or_dir_to_del_org)
-                print(f"Deleted.")
-            except Exception as e:
-                logger.error(f"WARNING: Could not delete: {file_or_dir_to_del_org}")
-                logger.warning(f"Exception is: {e}")
-                logger.warning("Continuing...")
-    print(f"")
+    ask_and_delete_file_on_current_system_subvol(file_or_dir_to_del_org)
 
     # Resume snapper timers
     stc.resume_snapper_timers()
     print(f"Done.")
+
+
+def ask_and_delete_file_on_current_system_subvol(file_or_dir_to_del_original_location):
+    """Ask the user if they also want to delete the file from the current system
+    check if the file/directory to delete exists in the current system"""
+    to_del = file_or_dir_to_del_original_location
+
+    if to_del.exists():
+        print(f"\nThe file/directory exists in the current system: {to_del}")
+        answer = input(f"Do you want to delete it from the current system? [y/N] ")
+        if answer.lower() == "y":
+            logger.info("Deleting: " + str(to_del))
+            try:
+                if os.path.isdir(to_del):
+                    shutil.rmtree(to_del)
+                else:
+                    os.remove(to_del)
+                print(f"Deleted.")
+            except Exception as e:
+                logger.error(f"WARNING: Could not delete: {to_del}")
+                logger.warning(f"Exception is: {e}")
+                logger.warning("Continuing...")
+    print(f"")
 
 
 if __name__ == "__main__":
@@ -129,6 +136,12 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n\nSIGINT received. Aborting.")
+        logger.error("Aborting - Snapshot permissions will be rolled back and timers resumed.")
+        snapshot_handler.restore_snapshot_permissions(verbose=True)
+        stc.resume_snapper_timers_and_exit(1)
+
+    except FileNotFoundError as e:
+        logger.error(e)
         logger.error("Aborting - Snapshot permissions will be rolled back and timers resumed.")
         snapshot_handler.restore_snapshot_permissions(verbose=True)
         stc.resume_snapper_timers_and_exit(1)
