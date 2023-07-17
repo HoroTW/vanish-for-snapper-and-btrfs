@@ -3,42 +3,43 @@ import os
 
 
 def configure_logger():
-    # get environment variable LOG_LEVEL
     log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 
-    # configure logging
     logging.basicConfig(
-        # to use colors without colorama
-        level=logging.INFO,
-        format="%(levelname)s %(message)s",
-        handlers=[],
+        level=log_level, format="%(levelname)s %(message)s", handlers=[logging.StreamHandler()]
     )
+    logger.debug("Logging configured with log level: " + log_level)
 
-    try:
-        import colorama
+    RESET_COLOR, RED, GREEN, YELLOW, BLUE = "", "", "", "", ""  # default no colors
 
-        colorama.init()
-        from colorama import Fore, Style
+    if os.isatty(1) and os.isatty(2):  # if stdout,stderr are ttys we use colors
+        logger.debug("stdout and stderr are terminals --> setting up colors")
+        RESET_COLOR = "\033[0m"
+        RED = "\033[31m"
+        GREEN = "\033[32m"
+        YELLOW = "\033[33m"
+        BLUE = "\033[34m"
 
-        class ColorFormatter(logging.Formatter):
-            def format(self, record):
-                if record.levelno == logging.WARNING:
-                    record.msg = Fore.YELLOW + record.msg + Style.RESET_ALL
-                elif record.levelno == logging.ERROR:
-                    record.msg = Fore.RED + record.msg + Style.RESET_ALL
-                elif record.levelno == logging.INFO:
-                    record.msg = Fore.GREEN + record.msg + Style.RESET_ALL
-                return super().format(record)
+    class ColorCapableFormatter(logging.Formatter):
+        def format(self, record):
+            if record.levelno == logging.WARNING:
+                record.msg = YELLOW + record.msg + RESET_COLOR
+            elif record.levelno == logging.ERROR:
+                record.msg = RED + record.msg + RESET_COLOR
+            elif record.levelno == logging.INFO:
+                record.msg = GREEN + record.msg + RESET_COLOR
+            elif record.levelno == logging.DEBUG:
+                record.msg = BLUE + record.msg + RESET_COLOR
+            return super().format(record)
 
-        color_formatter = ColorFormatter("%(levelname)s %(message)s")
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(color_formatter)
-        logging.getLogger().addHandler(console_handler)
-        logging.getLogger().setLevel(log_level)
-    except ImportError:
-        pass  # expected if colorama is not installed - logging will be without colors
+    color_formatter = ColorCapableFormatter("%(levelname)s %(message)s")
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(color_formatter)
+    logger.handlers.clear()
+    logger.addHandler(console_handler)
+    logger.debug("Logger is now configured")
 
 
 # Configure logger
-configure_logger()
 logger = logging.getLogger()
+configure_logger()
