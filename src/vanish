@@ -3,6 +3,7 @@
 import os
 import shutil
 import sys
+import traceback
 
 from exceptions import SystemConfigurationError
 import snapper_timer_control as stc
@@ -147,15 +148,8 @@ if __name__ == "__main__":
         stc.resume_snapper_timers_and_exit(1)
 
     except Exception as unexpectedMainError:
+        logger.error(traceback.format_exc())
         logger.error(f"An unexpected error occurred: {unexpectedMainError}")
-        # check if traceback can be imported
-        if "traceback" in sys.modules:
-            import traceback  # fmt: skip
-
-            logger.error(traceback.format_exc())
-        else:
-            logger.error("Traceback module not found. Install it to get a traceback.")
-
         logger.error("Aborting - Snapshot permissions will be rolled back and timers resumed.")
         snapshot_handler.restore_snapshot_permissions(verbose=True)
         stc.resume_snapper_timers_and_exit(1)
