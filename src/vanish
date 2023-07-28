@@ -84,20 +84,8 @@ def main():
     # reverse paths_to_delete so that we delete from the newest snapshot to the oldest
     paths_to_delete.reverse()
 
-    # Delete the files/directories
-    for path in paths_to_delete:
-        logger.info("Deleting: " + str(path))
-
-        try:
-            if os.path.isdir(path):
-                shutil.rmtree(path)
-            else:
-                os.remove(path)
-        except Exception as e:
-            logger.error(f"Could not delete: {path}")
-            logger.warning(f"Most likely the snapshot couldn't be made writable. Exception is: {e}")
-            logger.warning("Continuing...")
-            continue
+    ## Delete the files/directories in parallel:
+    snapshot_handler.delete_paths_in_parallel(paths_to_delete)
 
     # Make the read-only snapshots read-only again
     snapshot_handler.restore_snapshot_permissions()

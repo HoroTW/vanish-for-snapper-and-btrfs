@@ -1,6 +1,8 @@
 import os
 import pathlib
+import shutil
 import subprocess
+from multiprocessing import Pool
 
 from logger import logger
 from retry_annotation import retry
@@ -64,3 +66,51 @@ def restore_snapshot_permissions(verbose: bool = False):
         if p.returncode != 0:
             raise PermissionError("Could not make snapshot read-only again: " + str(snapshot))
         permission_modified_snapshots.remove(snapshot)  # on retry, it is not modified anymore
+
+
+def delete_single_path(path_to_delete: pathlib.Path):
+    """Deletes a single file/directory"""
+    logger.info("Deleting: " + str(path_to_delete))
+
+    try:
+        if os.path.isdir(path_to_delete):
+            shutil.rmtree(path_to_delete)
+        else:
+            os.remove(path_to_delete)
+    except Exception as e:
+        logger.error(f"Could not delete: {path_to_delete}")
+        logger.warning(f"Most likely the snapshot couldn't be made writable. Exception is: {e}")
+        logger.warning("Continuing...")
+        return False
+    return True
+
+
+def delete_paths(paths_to_delete: list[pathlib.Path]):
+    for path in paths_to_delete:
+        _ignored_result = delete_single_path(path)
+
+
+def delete_paths_in_parallel(paths_to_delete: list[pathlib.Path], parallel_processes: int = -1):
+    """Deletes all files/directories in paths_to_delete in parallel"""
+    if parallel_processes == -1:
+        parallel_processes = max(len(paths_to_delete), os.cpu_count() * 2)
+
+    logger.info(f"Deleting files/directories in parallel using {parallel_processes} processes")
+
+    # initialize the pool with the number of cpu cores:
+    pool = Pool(processes=parallel_processes)
+
+    # delete the paths in parallel:
+    results = pool.map_async(delete_single_path, paths_to_delete)
+
+    # wait for the results to finish:
+    result_values = results.get(None)
+
+    if any(result_values) is False:
+        logger.error(
+            f"Could not delete all files/directories (see above)... continuing\n"
+            f"since you can rerun the command to retry and nothing serious happened."
+        )
+
+    # close the pool:
+    pool.close()
