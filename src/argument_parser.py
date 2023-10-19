@@ -12,7 +12,7 @@ def print_usage_and_exit(exit_code: int):
 
 
 def print_usage():
-    """Prints the usage and if an exit code is given, exists with it."""
+    """Prints the usage"""
     print(
         """
 usage: vanish [OPTIONS] <file/directory to delete>
